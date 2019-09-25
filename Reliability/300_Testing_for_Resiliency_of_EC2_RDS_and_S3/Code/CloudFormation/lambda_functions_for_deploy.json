@@ -246,7 +246,13 @@
                   "rds:DescribeDBSubnetGroups",
                   "logs:CreateLogGroup",
                   "logs:CreateLogStream",
-                  "logs:PutLogEvents"
+                  "logs:PutLogEvents",
+                  "ssm:PutParameter",
+                  "kms:CreateAlias",
+                  "kms:CreateKey",
+                  "kms:ListKeys",
+                  "kms:ListAliases",
+                  "kms:Encrypt"
                 ],
                 "Resource" : "*"
               },
@@ -286,6 +292,7 @@
     "WebAppLambdaRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
+        "RoleName" : "WebAppLambdaRole",
         "AssumeRolePolicyDocument" : {
           "Version" : "2012-10-17",
           "Statement" : [ {
@@ -337,7 +344,8 @@
                 "elasticloadbalancing:RegisterTargets",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
-                "logs:PutLogEvents"
+                "logs:PutLogEvents",
+                "ssm:GetParameter"
               ],
               "Resource" : "*"
             } ]

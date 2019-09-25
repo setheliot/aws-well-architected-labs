@@ -23,6 +23,8 @@ import logging
 import traceback
 import boto3
 import json
+import random
+import string
 
 LOG_LEVELS = {'CRITICAL': 50, 'ERROR': 40, 'WARNING': 30, 'INFO': 20, 'DEBUG': 10}
 
@@ -88,6 +90,79 @@ def find_in_outputs(outputs, key_to_find):
     return output_string
 
 
+def check_kms_key_exist(kms_client, workshop):
+    print("Checking if KMS key for workshop already exist")
+    workshop_alias = 'alias/' + workshop
+    list_keys = kms_client.list_keys(
+    )
+    for keys in list_keys['Keys']:
+        list_aliases = kms_client.list_aliases(KeyId=keys["KeyId"])
+        for alias in list_aliases["Aliases"]:
+            if workshop_alias in alias.values():
+                return alias["TargetKeyId"]
+    return False
+
+
+def create_kms_key(kms_client, workshop):
+    check_key = check_kms_key_exist(kms_client, workshop)
+    if check_key:
+        return check_key
+    print("Creating a key in KMS to encrypt the password in SSM.")
+    account_id = boto3.client('sts').get_caller_identity().get('Account')
+    kms_policy = """{
+        "Version": "2012-10-17",
+        "Id": "key-default-1",
+        "Statement": [
+            {
+                "Sid": "Allow access for WebAppLambdaRole",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": [
+                        "arn:aws:iam::%s:role/WebAppLambdaRole",
+                        "arn:aws:iam::%s:root"
+                    ]
+                },
+            "Action": "kms:*",
+            "Resource": "*"
+            }
+        ]
+    }""" % (account_id, account_id)
+    response = kms_client.create_key(
+        Description='workshop key',
+        KeyUsage='ENCRYPT_DECRYPT',
+        Origin='AWS_KMS',
+        Policy=kms_policy,
+        BypassPolicyLockoutSafetyCheck=True
+    )
+    keyID = response["KeyMetadata"]["KeyId"]
+    kms_client.create_alias(
+        AliasName="alias/" + workshop,
+        TargetKeyId=keyID
+    )
+    return keyID
+
+
+# Set and write password to SSM parameter store
+# write_password_to_ssm('name-of-the-workshop', 'password-rds', '790832a9-190a-438c-8878-bd2bf22b1653', 'us-east-2')
+def write_password_to_ssm(parameter_name, value, kms_key, region):
+    client = boto3.client('ssm', region_name=region)
+    print("Writing password to SSM parameter store.")
+    client.put_parameter(
+        Name=parameter_name,
+        Value=value,
+        Type='SecureString',
+        KeyId=kms_key,
+        Overwrite=True
+    )
+    return
+
+
+def generate_password(password_length):
+    return ''.join(
+        random.SystemRandom().choice(
+            string.ascii_lowercase + string.digits) for _ in range(password_length))
+
+
 def deploy_rds(event):
     logger.debug("Running function deploy_rds")
     try:
@@ -129,19 +204,30 @@ def deploy_rds(event):
     # Create the list of security groups to pass
     rds_sg = find_in_outputs(vpc_outputs, 'MySQLSecurityGroup')
 
+    try:
+        workshop_name = event['workshop']
+    except Exception:
+        logger.debug("Unexpected error!\n Stack Trace:", traceback.format_exc())
+        workshop_name = 'UnknownWorkshop'
+
+    # Create KMS Key to encrypt password in SSM parameter store
+    # check if key with alias exist
+    kms_client = boto3.client('kms', region_name=region)
+    kms_key = create_kms_key(kms_client, workshop_name)
+
+    # Create password and put it in SSM
+    password_rds = generate_password(10)
+    write_password_to_ssm(workshop_name, password_rds, kms_key, region)
+
     # Prepare the stack parameters
     rds_parameters = []
     rds_parameters.append({'ParameterKey': 'DBSubnetIds', 'ParameterValue': rds_subnet_list, 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBSecurityGroups', 'ParameterValue': rds_sg, 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBInstanceClass', 'ParameterValue': 'db.t2.xlarge', 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBUser', 'ParameterValue': 'admin', 'UsePreviousValue': True})
-    rds_parameters.append({'ParameterKey': 'DBPassword', 'ParameterValue': 'foobar123', 'UsePreviousValue': True})
+    rds_parameters.append({'ParameterKey': 'DBPassword', 'ParameterValue': password_rds, 'UsePreviousValue': True})
     stack_tags = []
-    try:
-        workshop_name = event['workshop']
-    except Exception:
-        logger.debug("Unexpected error!\n Stack Trace:", traceback.format_exc())
-        workshop_name = 'UnknownWorkshop'
+
     stack_tags.append({'Key': 'Workshop', 'Value': 'AWSWellArchitectedReliability' + workshop_name})
     rds_template_s3_url = "https://s3." + cfn_region + ".amazonaws.com/" + bucket + "/" + key_prefix + "mySQL_rds.json"
     client.create_stack(
@@ -187,45 +273,37 @@ def check_stack(region, stack_name):
 
 
 def lambda_handler(event, context):
-    try:
-        global logger
-        logger = init_logging()
-        logger = set_log_level(logger, os.environ.get('log_level', event['log_level']))
 
-        logger.debug("Running function lambda_handler")
-        logger.info('event:')
-        logger.info(json.dumps(event))
-        if (context != 0):
-            logger.info('context.log_stream_name:' + context.log_stream_name)
-            logger.info('context.log_group_name:' + context.log_group_name)
-            logger.info('context.aws_request_id:' + context.aws_request_id)
+    global logger
+    logger = init_logging()
+    logger = set_log_level(logger, os.environ.get('log_level', event['log_level']))
+
+    logger.debug("Running function lambda_handler")
+    logger.info('event:')
+    logger.info(json.dumps(event))
+    if (context != 0):
+        logger.info('context.log_stream_name:' + context.log_stream_name)
+        logger.info('context.log_group_name:' + context.log_group_name)
+        logger.info('context.aws_request_id:' + context.aws_request_id)
+    else:
+        logger.info("No Context Object!")
+    process_global_vars()
+
+    # Check to see if the previous stack was actually created
+    vpc_stack_status = event['vpc']['status']
+    if (vpc_stack_status == 'CREATE_COMPLETE'):
+
+        if not check_stack(event['region_name'], stackname):
+            logger.debug("Stack " + stackname + " doesn't exist; creating")
+            return deploy_rds(event)
         else:
-            logger.info("No Context Object!")
-        process_global_vars()
-
-        # Check to see if the previous stack was actually created
-        vpc_stack_status = event['vpc']['status']
-        if (vpc_stack_status == 'CREATE_COMPLETE'):
-
-            if not check_stack(event['region_name'], stackname):
-                logger.debug("Stack " + stackname + " doesn't exist; creating")
-                return deploy_rds(event)
-            else:
-                logger.debug("Stack " + stackname + " exists")
-                return_dict = {'stackname': stackname}
-                return return_dict
-        else:
-            logger.debug("Stack " + stackname + " was not completely created: status = " + vpc_stack_status)
-            sys.exit(1)
-
-    except SystemExit:
-        logger.error("Exiting")
+            logger.debug("Stack " + stackname + " exists")
+            return_dict = {'stackname': stackname}
+            return return_dict
+    else:
+        logger.debug("Stack " + stackname + " was not completely created: status = " + vpc_stack_status)
         sys.exit(1)
-    except ValueError:
-        exit(1)
-    except Exception:
-        logger.error("Unexpected error!\n Stack Trace:", traceback.format_exc())
-    exit(0)
+    return
 
 
 if __name__ == "__main__":
