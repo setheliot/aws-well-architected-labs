@@ -1,96 +1,157 @@
 {
-  "AWSTemplateFormatVersion" : "2010-09-09",
-
-  "Description" : "Creates an RDS MySQL 5.7 instance",
-
-  "Parameters" : {
-
-    "DBSubnetIds" : {
-      "Description" : "Comma separated list of private subnet ids",
-      "Type" : "List<AWS::EC2::Subnet::Id>"
-    },
-
-    "DBSecurityGroups" : {
-      "Description" : "Comma separated list of security groups ids",
-      "Type" : "List<AWS::EC2::SecurityGroup::Id>"
-    },
-
-    "DBInstanceClass" : {
-      "Description" : "DB Instance Class",
-      "Type" : "String", 
-      "AllowedValues" : [ "db.t2.micro", "db.t2.small", "db.t2.medium", "db.t2.large", 
-        "db.t2.xlarge", "db.t2.2xlarge", "db.m4.large", "db.m4.2xlarge", "db.m4.4xlarge",
-       	"db.m4.10xlarge", "db.m4.16xlarge"  ],
-      "Default" : "db.t2.micro",
-      "ConstraintDescription" : "must select a valid database instance type."
-    },
-
-    "DBUser": {
-      "Description" : "DB admin account username",
-      "Type" : "String",
-      "MinLength" : "1",
-      "MaxLength" : "16",
-      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
-      "Default" : "admin",
-      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
-    },
-
-    "DBPassword" : {
-      "NoEcho" : "true",
-      "Description" : "DB admin account password",
-      "Type": "String",
-      "MinLength" : "1",
-      "MaxLength" : "41",
-      "AllowedPattern" : "[a-zA-Z0-9-_]*",
-      "ConstraintDescription" : "must contain only alphanumeric characters."
-    }
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates an RDS MySQL 5.7 instance",
+  "Parameters": {
+      "DBSubnetIds": {
+          "Description": "Comma separated list of private subnet ids",
+          "Type": "List<AWS::EC2::Subnet::Id>"
+      },
+      "DBSecurityGroups": {
+          "Description": "Comma separated list of security groups ids",
+          "Type": "List<AWS::EC2::SecurityGroup::Id>"
+      },
+      "DBInstanceClass": {
+          "Description": "DB Instance Class",
+          "Type": "String",
+          "AllowedValues": [
+              "db.t2.micro",
+              "db.t2.small",
+              "db.t2.medium",
+              "db.t2.large",
+              "db.t2.xlarge",
+              "db.t2.2xlarge",
+              "db.m4.large",
+              "db.m4.2xlarge",
+              "db.m4.4xlarge",
+              "db.m4.10xlarge",
+              "db.m4.16xlarge"
+          ],
+          "Default": "db.t2.micro",
+          "ConstraintDescription": "must select a valid database instance type."
+      },
+      "DBUser": {
+          "Description": "DB admin account username",
+          "Type": "String",
+          "MinLength": "1",
+          "MaxLength": "16",
+          "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+          "Default": "admin",
+          "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+      },
+      "DBPassword": {
+          "NoEcho": "true",
+          "Description": "DB admin account password",
+          "Type": "String",
+          "MinLength": "1",
+          "MaxLength": "41",
+          "AllowedPattern": "[a-zA-Z0-9-_]*",
+          "ConstraintDescription": "must contain only alphanumeric characters."
+      },
+      "KeyNamespace": {
+        "Type": "String"
+      }
   },
+  "Resources": {
 
-  "Resources" : {
-    "DBSubnetGroup" : {
-      "Type" : "AWS::RDS::DBSubnetGroup",
-      "Properties" : {
-        "DBSubnetGroupDescription" : "RDS Subnet Group",
-        "SubnetIds" : { "Ref" : "DBSubnetIds" },
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : "ResiliencyVPC-DBSubnets"
+    "KmsKeyAlias": {
+      "Type": "AWS::KMS::Alias",
+      "Properties": {
+          "AliasName": {
+              "Fn::Sub": "alias/${KeyNamespace}"
+          },
+          "TargetKeyId": {
+              "Ref": "KmsKey"
           }
-        ]
       }
     },
-
-    "DB" : {
-      "Type" : "AWS::RDS::DBInstance",
-      "Properties" : {
-        "MultiAZ" : "true",
-        "AllocatedStorage" :  "100",
-        "BackupRetentionPeriod" :  "1",
-        "CopyTagsToSnapshot" : "True",
-        "DBInstanceClass" : { "Ref" : "DBInstanceClass" },
-        "Engine" : "mysql",
-        "EngineVersion" : "5.7",
-        "StorageType" : "gp2",
-        "MasterUsername" : { "Ref" : "DBUser" },
-        "MasterUserPassword" : { "Ref" : "DBPassword" },
-        "VPCSecurityGroups" :  { "Ref" : "DBSecurityGroups" },
-        "DBSubnetGroupName" : { "Ref" : "DBSubnetGroup" },
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : "ResiliencyVPC-MySQLDB"
+    "KmsKey": {
+      "Type": "AWS::KMS::Key",
+      "Properties": {
+          "Description": {
+              "Fn::Sub": "Manages secrets in the ${KeyNamespace} workshop"
+          },
+          "Enabled": true,
+          "EnableKeyRotation": true,
+          "KeyPolicy": {
+              "Version": "2012-10-17",
+              "Id": "KeyPolicyForKMS",
+              "Statement": [
+                  {
+                      "Sid": "Enable IAM User/Role Permissions",
+                      "Effect": "Allow",
+                      "Principal": {
+                          "AWS": [
+                              {
+                                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root"
+                              },
+                              {
+                                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/WebAppLambdaRole"
+                              }
+                          ]
+                      },
+                      "Action": "kms:*",
+                      "Resource": "*"
+                  }
+              ]
           }
-        ]
       }
-    }  
+    },
+    "DBSubnetGroup": {
+        "Type": "AWS::RDS::DBSubnetGroup",
+        "Properties": {
+            "DBSubnetGroupDescription": "RDS Subnet Group",
+            "SubnetIds": {
+                "Ref": "DBSubnetIds"
+            },
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "ResiliencyVPC-DBSubnets"
+                }
+            ]
+        }
+    },
+    "DB": {
+        "Type": "AWS::RDS::DBInstance",
+        "Properties": {
+            "MultiAZ": "true",
+            "AllocatedStorage": "100",
+            "BackupRetentionPeriod": "1",
+            "CopyTagsToSnapshot": "True",
+            "DBInstanceClass": {
+                "Ref": "DBInstanceClass"
+            },
+            "Engine": "mysql",
+            "EngineVersion": "5.7",
+            "StorageType": "gp2",
+            "MasterUsername": {
+                "Ref": "DBUser"
+            },
+            "MasterUserPassword": "{{resolve:ssm-secure:ResiliWAR:1}}",
+            "VPCSecurityGroups": {
+                "Ref": "DBSecurityGroups"
+            },
+            "DBSubnetGroupName": {
+                "Ref": "DBSubnetGroup"
+            },
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "ResiliencyVPC-MySQLDB"
+                }
+            ]
+        }
+      }
   },
-
-  "Outputs" : {
-
-    "DBAddress" : {
-      "Description" : "DB Host Address",
-      "Value" : { "Fn::GetAtt" : [ "DB", "Endpoint.Address" ] }
-    }
+  "Outputs": {
+      "DBAddress": {
+          "Description": "DB Host Address",
+          "Value": {
+              "Fn::GetAtt": [
+                  "DB",
+                  "Endpoint.Address"
+              ]
+          }
+      }
   }
 }

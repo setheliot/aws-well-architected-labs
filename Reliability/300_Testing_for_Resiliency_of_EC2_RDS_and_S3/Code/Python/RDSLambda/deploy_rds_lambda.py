@@ -226,6 +226,7 @@ def deploy_rds(event):
     rds_parameters.append({'ParameterKey': 'DBInstanceClass', 'ParameterValue': 'db.t2.xlarge', 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBUser', 'ParameterValue': 'admin', 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBPassword', 'ParameterValue': password_rds, 'UsePreviousValue': True})
+    rds_parameters.append({'ParameterKey': 'KeyNamespace', 'ParameterValue': workshop_name, 'UsePreviousValue': True})
     stack_tags = []
 
     stack_tags.append({'Key': 'Workshop', 'Value': 'AWSWellArchitectedReliability' + workshop_name})
