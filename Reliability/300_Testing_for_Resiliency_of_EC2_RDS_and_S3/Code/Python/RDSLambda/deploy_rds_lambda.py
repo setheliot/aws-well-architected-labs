@@ -23,8 +23,7 @@ import logging
 import traceback
 import boto3
 import json
-import random
-import string
+
 
 LOG_LEVELS = {'CRITICAL': 50, 'ERROR': 40, 'WARNING': 30, 'INFO': 20, 'DEBUG': 10}
 
@@ -103,64 +102,14 @@ def check_kms_key_exist(kms_client, workshop):
     return False
 
 
-def create_kms_key(kms_client, workshop):
-    check_key = check_kms_key_exist(kms_client, workshop)
-    if check_key:
-        return check_key
-    print("Creating a key in KMS to encrypt the password in SSM.")
-    account_id = boto3.client('sts').get_caller_identity().get('Account')
-    kms_policy = """{
-        "Version": "2012-10-17",
-        "Id": "key-default-1",
-        "Statement": [
-            {
-                "Sid": "Allow access for WebAppLambdaRole",
-                "Effect": "Allow",
-                "Principal": {
-                    "AWS": [
-                        "arn:aws:iam::%s:role/WebAppLambdaRole",
-                        "arn:aws:iam::%s:root"
-                    ]
-                },
-            "Action": "kms:*",
-            "Resource": "*"
-            }
-        ]
-    }""" % (account_id, account_id)
-    response = kms_client.create_key(
-        Description='workshop key',
-        KeyUsage='ENCRYPT_DECRYPT',
-        Origin='AWS_KMS',
-        Policy=kms_policy,
-        BypassPolicyLockoutSafetyCheck=True
-    )
-    keyID = response["KeyMetadata"]["KeyId"]
-    kms_client.create_alias(
-        AliasName="alias/" + workshop,
-        TargetKeyId=keyID
-    )
-    return keyID
-
-
-# Set and write password to SSM parameter store
-# write_password_to_ssm('name-of-the-workshop', 'password-rds', '790832a9-190a-438c-8878-bd2bf22b1653', 'us-east-2')
-def write_password_to_ssm(parameter_name, value, kms_key, region):
+def get_password_from_ssm(parameter_name, region):
     client = boto3.client('ssm', region_name=region)
-    print("Writing password to SSM parameter store.")
-    client.put_parameter(
+    logger.debug("Getting pwd from SSM parameter store.")
+    value = client.get_parameter(
         Name=parameter_name,
-        Value=value,
-        Type='SecureString',
-        KeyId=kms_key,
-        Overwrite=True
+        WithDecryption=True
     )
-    return
-
-
-def generate_password(password_length):
-    return ''.join(
-        random.SystemRandom().choice(
-            string.ascii_lowercase + string.digits) for _ in range(password_length))
+    return value['Parameter']['Value']
 
 
 def deploy_rds(event):
@@ -210,14 +159,7 @@ def deploy_rds(event):
         logger.debug("Unexpected error!\n Stack Trace:", traceback.format_exc())
         workshop_name = 'UnknownWorkshop'
 
-    # Create KMS Key to encrypt password in SSM parameter store
-    # check if key with alias exist
-    kms_client = boto3.client('kms', region_name=region)
-    kms_key = create_kms_key(kms_client, workshop_name)
-
-    # Create password and put it in SSM
-    password_rds = generate_password(10)
-    write_password_to_ssm(workshop_name, password_rds, kms_key, region)
+    password_rds = get_password_from_ssm(workshop_name, region)
 
     # Prepare the stack parameters
     rds_parameters = []

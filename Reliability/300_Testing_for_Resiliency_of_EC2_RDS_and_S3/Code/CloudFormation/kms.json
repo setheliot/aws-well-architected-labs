@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Creates an RDS MySQL 5.7 instance",
+  "Description": "Creates an SSM parameter store with a SecureString encryped with KMS and puts a password into it.",
   "Parameters": {
       "WorkshopName": {
         "Type": "String"
@@ -66,7 +66,7 @@
             "Ref": "KmsKey"
           },
           "KmsKeyName": {
-            "Fn::Sub": "${WorkshopName}"
+            "Ref": "WorkshopName"
           }
         }
       },
@@ -90,6 +90,12 @@
                             "import boto3",
                             "import random",
                             "import string",
+                            "import cfnresponse",
+                            "import logging",
+                            "import signal",
+                            "",
+                            "LOGGER = logging.getLogger()",
+                            "LOGGER.setLevel(logging.INFO)",
                             "",
                             "def generate_password(password_length):",
                             "    return ''.join(",
@@ -98,7 +104,7 @@
                             "",
                             "def write_password_to_ssm(parameter_name, value, kms_key):",
                             "    client = boto3.client('ssm')",
-                            "    print('Writing password to SSM parameter store.')",
+                            "    LOGGER.info('Writing password to SSM parameter store.')",
                             "    client.put_parameter(",
                             "       Name=parameter_name,",
                             "       Value=value,",
@@ -109,11 +115,40 @@
                             "    return",
                             "",
                             "def handler(event, context):",
-                            "    print(event)",
-                            "    kms_key = event['KmsKeyID']",
-                            "    key_name = event['KeyName']",
-                            "    write_password_to_ssm(KeyName, generate_password(10), kms_key)",
-                            "    return"
+                            "    signal.alarm((context.get_remaining_time_in_millis() / 1000) - 1)",
+                            "    # Setup alarm for remaining runtime minus a second",
+                            "    try:",
+                            "        LOGGER.info('REQUEST RECEIVED: %s', event)",
+                            "        LOGGER.info('REQUEST RECEIVED: %s', context)",
+                            "        if event['RequestType'] == 'Create':",
+                            "            LOGGER.info('CREATE!')",
+                            "            kms_key = event['ResourceProperties']['KmsKeyID']",
+                            "            key_name = event['ResourceProperties']['KmsKeyName']",
+                            "            write_password_to_ssm(key_name, generate_password(10), kms_key)",
+                            "            cfnresponse.send(event, context, cfnresponse.SUCCESS,",
+                            "                {'Message': 'Resource creation successful!'})",
+                            "        elif event['RequestType'] == 'Update':",
+                            "            LOGGER.info('UPDATE!')",
+                            "            cfnresponse.send(event, context, cfnresponse.SUCCESS,",
+                            "                {'Message': Resource update successful!'})",
+                            "        elif event['RequestType'] == 'Delete':",
+                            "            LOGGER.info('DELETE!')",
+                            "            cfnresponse.send(event, context, cfnresponse.SUCCESS,",
+                            "                {'Message': 'Resource deletion successful!'})",
+                            "        else:",
+                            "            LOGGER.info('FAILED!')",
+                            "            cfnresponse.send(event, context, cfnresponse.FAILED,",
+                            "                {'Message': 'Unexpected event received from CloudFormation'})",
+                            "except:",
+                            "    LOGGER.info('FAILED!')",
+                            "    cfnresponse.send(event, context, cfnresponse.FAILED, {",
+                            "        'Message': 'Exception during processing'})",
+                            "",
+                            "def timeout_handler(_signal, _frame):",
+                            "    raise Exception('Time exceeded')",
+                            "",
+                            "",
+                            "signal.signal(signal.SIGALRM, timeout_handler)"
                         ]
                     ]
                 }

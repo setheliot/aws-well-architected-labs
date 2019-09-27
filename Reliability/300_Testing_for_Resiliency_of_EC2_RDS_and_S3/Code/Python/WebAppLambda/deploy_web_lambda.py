@@ -208,7 +208,6 @@ def deploy_web_servers(event):
     # Get the hostname of the RDS host
     rds_host = find_in_outputs(rds_outputs, 'DBAddress')
 
-    rds_user = 'admin'
     rds_password = get_password_from_ssm(workshop_name, region)
 
     # Prepare the stack parameters
@@ -227,7 +226,7 @@ def deploy_web_servers(event):
     webserver_parameters.append({'ParameterKey': 'BootObject', 'ParameterValue': boot_object, 'UsePreviousValue': True})
     webserver_parameters.append({'ParameterKey': 'WebSiteImage', 'ParameterValue': websiteimage, 'UsePreviousValue': True})
     webserver_parameters.append({'ParameterKey': 'RDSHostName', 'ParameterValue': rds_host, 'UsePreviousValue': True})
-    webserver_parameters.append({'ParameterKey': 'RDSUser', 'ParameterValue': rds_user, 'UsePreviousValue': True})
+    webserver_parameters.append({'ParameterKey': 'RDSUser', 'ParameterValue': 'admin', 'UsePreviousValue': True})
     webserver_parameters.append({'ParameterKey': 'RDSPassword', 'ParameterValue': rds_password, 'UsePreviousValue': False})
     stack_tags = []
 
