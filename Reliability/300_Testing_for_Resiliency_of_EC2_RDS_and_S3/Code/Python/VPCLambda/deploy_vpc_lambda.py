@@ -93,6 +93,12 @@ def deploy_vpc(event):
         bucket = "arc327-well-architected-for-reliability",
         key_prefix = "/"
 
+    try:
+        workshop_name = event['workshop']
+    except Exception:
+        logger.error("Unexpected error!\n Stack Trace:", traceback.format_exc())
+        workshop_name = 'UnknownWorkshop'
+
     vpc_parameters = []
     vpc_parameters.append({'ParameterKey': 'BastionCidrIp', 'ParameterValue': '0.0.0.0/0', 'UsePreviousValue': True})
     vpc_parameters.append({'ParameterKey': 'VPCCidrBlock', 'ParameterValue': '10.0.0.0/16', 'UsePreviousValue': True})
@@ -105,13 +111,9 @@ def deploy_vpc(event):
     vpc_parameters.append({'ParameterKey': 'AvailabilityZone1', 'ParameterValue': region + 'a', 'UsePreviousValue': True})
     vpc_parameters.append({'ParameterKey': 'AvailabilityZone2', 'ParameterValue': region + 'b', 'UsePreviousValue': True})
     vpc_parameters.append({'ParameterKey': 'AvailabilityZone3', 'ParameterValue': region + 'c', 'UsePreviousValue': True})
+    vpc_parameters.append({'ParameterKey': 'WorkshopName', 'ParameterValue': workshop_name, 'UsePreviousValue': True})
     print(vpc_parameters)
     stack_tags = []
-    try:
-        workshop_name = event['workshop']
-    except Exception:
-        logger.error("Unexpected error!\n Stack Trace:", traceback.format_exc())
-        workshop_name = 'UnknownWorkshop'
 
     vpc_template_s3_url = "https://s3." + cfn_region + ".amazonaws.com/" + bucket + "/" + key_prefix + "three_az_vpc_sg_nat.json"
     print(vpc_template_s3_url)
@@ -126,7 +128,10 @@ def deploy_vpc(event):
         Parameters=vpc_parameters,
         DisableRollback=False,
         TimeoutInMinutes=10,
-        Tags=stack_tags
+        Tags=stack_tags,
+        Capabilities=[
+            'CAPABILITY_NAMED_IAM'
+        ]
     )
 
     return_dict = {'stackname': stackname}

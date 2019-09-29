@@ -89,29 +89,6 @@ def find_in_outputs(outputs, key_to_find):
     return output_string
 
 
-def check_kms_key_exist(kms_client, workshop):
-    print("Checking if KMS key for workshop already exist")
-    workshop_alias = 'alias/' + workshop
-    list_keys = kms_client.list_keys(
-    )
-    for keys in list_keys['Keys']:
-        list_aliases = kms_client.list_aliases(KeyId=keys["KeyId"])
-        for alias in list_aliases["Aliases"]:
-            if workshop_alias in alias.values():
-                return alias["TargetKeyId"]
-    return False
-
-
-def get_password_from_ssm(parameter_name, region):
-    client = boto3.client('ssm', region_name=region)
-    logger.debug("Getting pwd from SSM parameter store.")
-    value = client.get_parameter(
-        Name=parameter_name,
-        WithDecryption=True
-    )
-    return value['Parameter']['Value']
-
-
 def deploy_rds(event):
     logger.debug("Running function deploy_rds")
     try:
@@ -159,16 +136,13 @@ def deploy_rds(event):
         logger.debug("Unexpected error!\n Stack Trace:", traceback.format_exc())
         workshop_name = 'UnknownWorkshop'
 
-    password_rds = get_password_from_ssm(workshop_name, region)
-
     # Prepare the stack parameters
     rds_parameters = []
     rds_parameters.append({'ParameterKey': 'DBSubnetIds', 'ParameterValue': rds_subnet_list, 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBSecurityGroups', 'ParameterValue': rds_sg, 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBInstanceClass', 'ParameterValue': 'db.t2.xlarge', 'UsePreviousValue': True})
     rds_parameters.append({'ParameterKey': 'DBUser', 'ParameterValue': 'admin', 'UsePreviousValue': True})
-    rds_parameters.append({'ParameterKey': 'DBPassword', 'ParameterValue': password_rds, 'UsePreviousValue': True})
-    rds_parameters.append({'ParameterKey': 'KeyNamespace', 'ParameterValue': workshop_name, 'UsePreviousValue': True})
+    rds_parameters.append({'ParameterKey': 'WorkshopName', 'ParameterValue': workshop_name, 'UsePreviousValue': True})
     stack_tags = []
 
     stack_tags.append({'Key': 'Workshop', 'Value': 'AWSWellArchitectedReliability' + workshop_name})

@@ -2,6 +2,9 @@
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "Creates an RDS MySQL 5.7 instance",
   "Parameters": {
+    "WorkshopName": {
+        "Type": "String"
+      },
       "DBSubnetIds": {
           "Description": "Comma separated list of private subnet ids",
           "Type": "List<AWS::EC2::Subnet::Id>"
@@ -37,65 +40,9 @@
           "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
           "Default": "admin",
           "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
-      },
-      "DBPassword": {
-          "NoEcho": "true",
-          "Description": "DB admin account password",
-          "Type": "String",
-          "MinLength": "1",
-          "MaxLength": "41",
-          "AllowedPattern": "[a-zA-Z0-9-_]*",
-          "ConstraintDescription": "must contain only alphanumeric characters."
-      },
-      "KeyNamespace": {
-        "Type": "String"
       }
   },
   "Resources": {
-
-    "KmsKeyAlias": {
-      "Type": "AWS::KMS::Alias",
-      "Properties": {
-          "AliasName": {
-              "Fn::Sub": "alias/${KeyNamespace}"
-          },
-          "TargetKeyId": {
-              "Ref": "KmsKey"
-          }
-      }
-    },
-    "KmsKey": {
-      "Type": "AWS::KMS::Key",
-      "Properties": {
-          "Description": {
-              "Fn::Sub": "Manages secrets in the ${KeyNamespace} workshop"
-          },
-          "Enabled": true,
-          "EnableKeyRotation": true,
-          "KeyPolicy": {
-              "Version": "2012-10-17",
-              "Id": "KeyPolicyForKMS",
-              "Statement": [
-                  {
-                      "Sid": "Enable IAM User/Role Permissions",
-                      "Effect": "Allow",
-                      "Principal": {
-                          "AWS": [
-                              {
-                                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root"
-                              },
-                              {
-                                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/WebAppLambdaRole"
-                              }
-                          ]
-                      },
-                      "Action": "kms:*",
-                      "Resource": "*"
-                  }
-              ]
-          }
-      }
-    },
     "DBSubnetGroup": {
         "Type": "AWS::RDS::DBSubnetGroup",
         "Properties": {
@@ -127,7 +74,9 @@
             "MasterUsername": {
                 "Ref": "DBUser"
             },
-            "MasterUserPassword": "{{resolve:ssm-secure:ResiliWAR:1}}",
+            "MasterUserPassword": {
+                "Fn::Sub": "{{resolve:ssm-secure:${WorkshopName}:1}}"
+            },
             "VPCSecurityGroups": {
                 "Ref": "DBSecurityGroups"
             },

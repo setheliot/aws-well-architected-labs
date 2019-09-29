@@ -70,6 +70,7 @@
       },
       "Type" : "AWS::IAM::Role",
       "Properties" : {
+        "RoleName" : "VPCWorkshopRole",
         "AssumeRolePolicyDocument" : {
           "Version" : "2012-10-17",
           "Statement" : [ {
@@ -110,10 +111,31 @@
                 "ec2:ModifyVpcAttribute",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
-                "logs:PutLogEvents"
+                "logs:PutLogEvents",
+                "ssm:PutParameter",
+                "ssm:GetParameters",
+                "kms:CreateAlias",
+                "kms:CreateKey",
+                "kms:ListKeys",
+                "kms:ListAliases",
+                "kms:Encrypt",
+                "iam:AddRoleToInstanceProfile",
+                "iam:AttachRolePolicy",
+                "iam:CreateInstanceProfile",
+                "iam:CreateRole",
+                "iam:DescribeInstanceProfiles",
+                "iam:DescribeRoles",
+                "iam:PassRole",
+                "iam:GetRole",
+                "iam:PutRolePolicy",
+                "iam:GetRolePolicy",
+                "lambda:CreateFunction",
+                "lambda:InvokeFunction",
+                "lambda:GetFunctionConfiguration"
               ],
               "Resource" : "*"
-            } ]
+            }
+          ]
           }
         } ]
       }
@@ -218,6 +240,7 @@
     "RDSLambdaRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
+        "RoleName": "RDSWorkshopRole",
         "AssumeRolePolicyDocument" : {
           "Version" : "2012-10-17",
           "Statement" : [ {
@@ -247,12 +270,7 @@
                   "logs:CreateLogGroup",
                   "logs:CreateLogStream",
                   "logs:PutLogEvents",
-                  "ssm:PutParameter",
-                  "kms:CreateAlias",
-                  "kms:CreateKey",
-                  "kms:ListKeys",
-                  "kms:ListAliases",
-                  "kms:Encrypt"
+                  "ssm:GetParameters"
                 ],
                 "Resource" : "*"
               },
