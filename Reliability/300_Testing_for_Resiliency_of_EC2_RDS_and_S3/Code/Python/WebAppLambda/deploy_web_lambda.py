@@ -118,14 +118,14 @@ def find_in_outputs(outputs, key_to_find):
     return output_string
 
 
-def get_password_from_ssm(parameter_name, region):
-    client = boto3.client('ssm', region_name=region)
-    logger.debug("Getting pwd from SSM parameter store.")
-    value = client.get_parameter(
-        Name=parameter_name,
-        WithDecryption=True
-    )
-    return value['Parameter']['Value']
+# def get_password_from_ssm(parameter_name, region):
+#     client = boto3.client('ssm', region_name=region)
+#     logger.debug("Getting pwd from SSM parameter store.")
+#     value = client.get_parameter(
+#         Name=parameter_name,
+#         WithDecryption=True
+#     )
+#     return value['Parameter']['Value']
 
 
 def deploy_web_servers(event):
@@ -208,7 +208,7 @@ def deploy_web_servers(event):
     # Get the hostname of the RDS host
     rds_host = find_in_outputs(rds_outputs, 'DBAddress')
 
-    rds_password = get_password_from_ssm(workshop_name, region)
+    # rds_password = get_password_from_ssm(workshop_name, region)
 
     # Prepare the stack parameters
     webserver_parameters = []
@@ -227,7 +227,7 @@ def deploy_web_servers(event):
     webserver_parameters.append({'ParameterKey': 'WebSiteImage', 'ParameterValue': websiteimage, 'UsePreviousValue': True})
     webserver_parameters.append({'ParameterKey': 'RDSHostName', 'ParameterValue': rds_host, 'UsePreviousValue': True})
     webserver_parameters.append({'ParameterKey': 'RDSUser', 'ParameterValue': 'admin', 'UsePreviousValue': True})
-    webserver_parameters.append({'ParameterKey': 'RDSPassword', 'ParameterValue': rds_password, 'UsePreviousValue': False})
+    # webserver_parameters.append({'ParameterKey': 'RDSPassword', 'ParameterValue': rds_password, 'UsePreviousValue': False})
     stack_tags = []
 
     stack_tags.append({'Key': 'Workshop', 'Value': 'AWSWellArchitectedReliability' + workshop_name})
