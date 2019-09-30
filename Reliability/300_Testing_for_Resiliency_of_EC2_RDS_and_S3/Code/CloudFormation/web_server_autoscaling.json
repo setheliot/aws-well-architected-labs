@@ -133,16 +133,11 @@
               "#!/bin/bash\n",
               "yum -y update\n",
               "yum -y install mysql\n",
-              "wget https://s3.", { "Ref" : "BootBucketRegion" }, ".amazonaws.com/", { "Ref" : "BootBucket" }, "/", { "Ref" : "BootPrefix" }, { "Ref" : "BootObject" }, "\n",
-              "chown root ", { "Ref" : "BootObject" }, "\n",
-              "chgrp root ", { "Ref" : "BootObject" }, "\n",
-              "chmod +x ", { "Ref" : "BootObject" }, "\n",
+              "yum -y install python3\n",
               "wget https://s3.", { "Ref" : "BootBucketRegion" }, ".amazonaws.com/" , { "Ref" : "BootBucket" }, "/", { "Ref" : "BootPrefix" }, "createIPTable.sql\n",
-              "chown root createIPTable.sql\n",
-              "chgrp root createIPTable.sql\n",
-              "chmod +x createIPTable.sql\n",
               "mysql -h ", { "Ref" : "RDSHostName"}, " -u ", { "Ref" : "RDSUser"}, " -p", { "Ref" : "RDSPassword"}, " <createIPTable.sql\n",
-              "./", { "Ref" : "BootObject"}, " ", { "Ref" : "RDSHostName" }, " ", { "Ref" : "RDSUser"}, " ", { "Ref" : "BootBucket" }, " ", { "Ref" : "BootPrefix" }, " ", { "Ref" : "BootBucketRegion" }, " ", { "Ref" : "WebSiteImage" }, "\n"
+              "wget https://s3.", { "Ref" : "BootBucketRegion" }, ".amazonaws.com/" , { "Ref" : "BootBucket" }, "/", { "Ref" : "BootPrefix" }, "server.py\n",
+              "python3 server.py\n"
             ]]
             }
         }
@@ -197,7 +192,7 @@
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
         "AvailabilityZones" : {"Ref" : "AvailabilityZones"},
-        "MinSize" : "3",
+        "MinSize" : "2",
         "MaxSize" : "3",
         "HealthCheckType" : "ELB",
         "HealthCheckGracePeriod" : "60",
