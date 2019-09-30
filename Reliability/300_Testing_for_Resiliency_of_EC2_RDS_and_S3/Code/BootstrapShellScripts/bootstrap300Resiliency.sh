@@ -19,6 +19,12 @@ if [ $# -ne 6 ]; then
   exit 1
 fi
 
+# Retrieve the SQL file that will create the table
+wget https://s3.$5.amazonaws.com/$3/$4createIPTable.sql
+
+# Execute the SQL - note, yes the password is hardcoded to make this easy to understand - this violates the Security Pillar of Well-Architected!
+mysql -h $1 -u $2 -pfoobar123 <createIPTable.sql
+
 # Retrieve the executable web server
 wget https://s3.$5.amazonaws.com/$3/$4FragileWebApp
 
