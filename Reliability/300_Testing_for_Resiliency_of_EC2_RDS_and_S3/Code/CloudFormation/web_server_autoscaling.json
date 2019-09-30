@@ -84,6 +84,12 @@
     "RDSUser" : {
       "Description" : "User in RDS host to connect to",
       "Type" : "String"
+    },
+  
+    "RDSPassword" : {
+      "Description" : "User in RDS host to connect to",
+      "Type" : "String",
+      "NoEcho" : "true"
     }
 
   },
@@ -135,7 +141,7 @@
               "chown root createIPTable.sql\n",
               "chgrp root createIPTable.sql\n",
               "chmod +x createIPTable.sql\n",
-              "mysql -h ", { "Ref" : "RDSHostName"}, " -u ", { "Ref" : "RDSUser"}, " -p", { "Ref" : "{resolve:ssm-secure:${WorkshopName}:1}"}, " <createIPTable.sql\n",
+              "mysql -h ", { "Ref" : "RDSHostName"}, " -u ", { "Ref" : "RDSUser"}, " -p", { "Ref" : "RDSPassword"}, " <createIPTable.sql\n",
               "./", { "Ref" : "BootObject"}, " ", { "Ref" : "RDSHostName" }, " ", { "Ref" : "RDSUser"}, " ", { "Ref" : "BootBucket" }, " ", { "Ref" : "BootPrefix" }, " ", { "Ref" : "BootBucketRegion" }, " ", { "Ref" : "WebSiteImage" }, "\n"
             ]]
             }
