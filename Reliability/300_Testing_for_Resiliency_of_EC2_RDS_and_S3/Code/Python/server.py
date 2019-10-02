@@ -1,9 +1,9 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import sys
 import getopt
-import requests
 from functools import partial
-from urllib.parse import urlparse
+from ec2_metadata import ec2_metadata
+
 
 html = """
 <!DOCTYPE html>
@@ -27,23 +27,15 @@ class RequestHandler(BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        parsed_path = urlparse(self.path)
         message_parts = [
-            'Metadata IP:%s' % requests.get("http://169.254.169.254/latest/meta-data/public-ipv4").content,
-            'client_address=%s (%s)' % (self.client_address,
-                                        self.address_string()),
-            'command=%s' % self.command,
-            'path=%s' % self.path,
-            'real path=%s' % parsed_path.path,
-            'query=%s' % parsed_path.query,
-            'request_version=%s' % self.request_version,
-            'server_version=%s' % self.server_version,
-            'sys_version=%s' % self.sys_version,
-            'protocol_version=%s' % self.protocol_version,
+            'account_id:%s' % ec2_metadata.account_id,
+            'ami_id:%s' % ec2_metadata.ami_id,
+            'availability_zone:%s' % ec2_metadata.availability_zone,
+            'instance_id:%s' % ec2_metadata.instance_id,
+            'instance_type:%s' % ec2_metadata.instance_type,
+            'private_hostname:%s' % ec2_metadata.private_hostname,
+            'private_ipv4:%s' % ec2_metadata.private_ipv4
         ]
-        for name, value in sorted(self.headers.items()):
-            message_parts.append('%s=%s' % (name, value.rstrip()))
-        message_parts.append('')
         message = '<br>'.join(message_parts)
 
         # Send response status code
