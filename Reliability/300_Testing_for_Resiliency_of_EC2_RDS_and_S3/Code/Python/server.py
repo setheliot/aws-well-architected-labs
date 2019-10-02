@@ -85,7 +85,7 @@ def run(argv):
     print('Image url: ', imageurl)
     # image = "https://s3.us-east-2.amazonaws.com/arc327-well-architected-for-reliability/Cirque_of_the_Towers.jpg"
     print('starting server...')
-    server_address = ('0.0.0.0', 8080)
+    server_address = ('0.0.0.0', 80)
 
     handler = partial(RequestHandler, imageurl)
     httpd = HTTPServer(server_address, handler)
