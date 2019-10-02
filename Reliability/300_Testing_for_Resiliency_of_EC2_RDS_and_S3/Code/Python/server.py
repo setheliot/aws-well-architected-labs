@@ -14,7 +14,7 @@ html = """
     </head>
     <body>
         <h1>Welcome to the Resiliency Workshop!</h1>
-        <p>Data from the request client&server side</p>
+        <p>Data from the metadata API</p>
         <p>{Content}<p>
         <img src="{WebSiteImage}" alt="alternative text" scale="0">
     </body>
@@ -28,13 +28,13 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         message_parts = [
-            'account_id:%s' % ec2_metadata.account_id,
-            'ami_id:%s' % ec2_metadata.ami_id,
-            'availability_zone:%s' % ec2_metadata.availability_zone,
-            'instance_id:%s' % ec2_metadata.instance_id,
-            'instance_type:%s' % ec2_metadata.instance_type,
-            'private_hostname:%s' % ec2_metadata.private_hostname,
-            'private_ipv4:%s' % ec2_metadata.private_ipv4
+            'account_id: %s' % ec2_metadata.account_id,
+            'ami_id: %s' % ec2_metadata.ami_id,
+            'availability_zone: %s' % ec2_metadata.availability_zone,
+            'instance_id: %s' % ec2_metadata.instance_id,
+            'instance_type: %s' % ec2_metadata.instance_type,
+            'private_hostname: %s' % ec2_metadata.private_hostname,
+            'private_ipv4: %s' % ec2_metadata.private_ipv4
         ]
         message = '<br>'.join(message_parts)
 
